@@ -20,6 +20,13 @@ export async function getOrCreateProfile(user: User) {
   const existing = await prisma.profile.findUnique({ where: { id: user.id } });
   if (existing) {
     await prisma.profile.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+    const lastSession = await prisma.userSession.findFirst({ where: { userId: user.id }, orderBy: { loginAt: "desc" } });
+    const staleMs = 30 * 60 * 1000;
+    if (!lastSession || Date.now() - lastSession.loginAt.getTime() > staleMs) {
+      await prisma.userSession.create({ data: { userId: user.id } });
+    }
+
     return existing;
   }
 
@@ -59,6 +66,7 @@ export async function getOrCreateProfile(user: User) {
     });
 
     await tx.userStatistics.create({ data: { userId: created.id } });
+    await tx.userSession.create({ data: { userId: created.id } });
 
     await tx.notification.create({
       data: {
