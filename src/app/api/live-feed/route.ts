@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(Number(searchParams.get("limit") ?? 20), 50);
+
+  const rounds = await prisma.gameRound.findMany({
+    where: { isWin: true, payout: { gt: 0 } },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      profile: { select: { username: true, avatarUrl: true, level: true } },
+      game: { select: { name: true, slug: true, category: true } },
+    },
+  });
+
+  const feed = rounds.map((r) => ({
+    id: r.id,
+    username: r.profile.username,
+    avatarUrl: r.profile.avatarUrl,
+    level: r.profile.level,
+    game: r.game.name,
+    gameSlug: r.game.slug,
+    category: r.game.category,
+    betAmount: Number(r.betAmount),
+    payout: Number(r.payout),
+    multiplier: Number(r.multiplier),
+    createdAt: r.createdAt.toISOString(),
+  }));
+
+  return NextResponse.json({ feed });
+}

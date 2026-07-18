@@ -68,7 +68,7 @@ export function BlackjackGame({ game }: { game: GameMeta }) {
       }
     } else {
       setDealerUpCard(data.dealerUpCard);
-      setDealer([data.dealerUpCard, "🎴"]);
+      setDealer([data.dealerUpCard, "❓"]);
       setOutcome(null);
       setBalance(data.balance);
     }

@@ -87,7 +87,7 @@ function Card({ label, back }: { label: string | null; back?: boolean }) {
       animate={{ rotateY: 0 }}
       className="flex h-32 w-24 items-center justify-center rounded-xl border-2 border-peak-gold bg-peak-surface-2 font-display text-2xl font-bold text-white glow-gold"
     >
-      {back ? "🎴" : (label ?? "?")}
+      {back ? "❓" : (label ?? "?")}
     </motion.div>
   );
 }

@@ -102,7 +102,7 @@ export const TABLE_GAMES: GameMeta[] = [
     volatility: "medium",
     minBet: 1,
     maxBet: 3000,
-    icon: "🃏",
+    icon: "♥️",
     gradient: ["#3ba7ff", "#b177ff"],
   },
   {
@@ -214,7 +214,7 @@ export const TABLE_GAMES: GameMeta[] = [
     volatility: "medium",
     minBet: 1,
     maxBet: 2000,
-    icon: "🎴",
+    icon: "♣️",
     gradient: ["#3ba7ff", "#ffd700"],
   },
   {
@@ -227,7 +227,7 @@ export const TABLE_GAMES: GameMeta[] = [
     volatility: "medium",
     minBet: 1,
     maxBet: 2000,
-    icon: "🃏",
+    icon: "♦️",
     gradient: ["#b177ff", "#080808"],
   },
   {
@@ -240,7 +240,7 @@ export const TABLE_GAMES: GameMeta[] = [
     minBet: 5,
     maxBet: 2000,
     isNew: true,
-    icon: "🎴",
+    icon: "🤖",
     gradient: ["#39ff88", "#080808"],
   },
 ];
