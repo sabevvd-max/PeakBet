@@ -1,0 +1,407 @@
+// PeakBet — database schema
+// Educational demo casino platform. No real money is ever modeled here —
+// every balance/transaction is denominated in virtual "demo coins".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+enum Role {
+  USER
+  ADMIN
+}
+
+/// Mirrors a Supabase Auth user (id === auth.users.id). Supabase owns
+/// credentials/sessions; this table owns everything app-specific.
+model Profile {
+  id        String  @id @default(uuid())
+  username  String  @unique
+  email     String  @unique
+  avatarUrl String?
+  bio       String?
+  role      Role    @default(USER)
+
+  balance Decimal @default(10000) @db.Decimal(18, 2)
+  level   Int     @default(1)
+  xp      Int     @default(0)
+
+  referralCode String    @unique @default(cuid())
+  referredById String?
+  referredBy   Profile?  @relation("Referrals", fields: [referredById], references: [id])
+  referrals    Profile[] @relation("Referrals")
+
+  isBanned    Boolean   @default(false)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  transactions         Transaction[]
+  gameRounds           GameRound[]
+  achievements         UserAchievement[]
+  missions             UserMission[]
+  rewardClaims         RewardClaim[]
+  favorites            FavoriteGame[]
+  notifications        Notification[]
+  sessions             UserSession[]
+  statistics           UserStatistics?
+  promoRedemptions     PromoRedemption[]
+  leaderboardEntries   LeaderboardEntry[]
+  referralBonusesGiven ReferralBonus[]    @relation("ReferrerBonus")
+  adminLogs            AdminLog[]
+  announcements        Announcement[]
+
+  @@index([balance])
+  @@index([xp])
+}
+
+/// Login/session analytics for the admin DAU dashboard (separate from
+/// Supabase's own auth session, which is not stored in our DB).
+model UserSession {
+  id        String    @id @default(cuid())
+  userId    String
+  profile   Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt   DateTime  @default(now())
+  logoutAt  DateTime?
+  ipAddress String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([loginAt])
+}
+
+// ---------------------------------------------------------------------------
+// Wallet / Ledger
+// ---------------------------------------------------------------------------
+
+enum TransactionType {
+  SIGNUP_BONUS
+  BET
+  PAYOUT
+  DAILY_REWARD
+  WEEKLY_REWARD
+  MONTHLY_REWARD
+  MISSION_REWARD
+  ACHIEVEMENT_REWARD
+  LEVEL_UP_BONUS
+  PROMO_CODE
+  REFERRAL_BONUS
+  ADMIN_ADJUSTMENT
+}
+
+/// Append-only ledger of every demo-coin movement. Never mutated, only
+/// inserted — balanceAfter is a denormalized snapshot for fast history reads.
+model Transaction {
+  id           String          @id @default(cuid())
+  userId       String
+  profile      Profile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         TransactionType
+  amount       Decimal         @db.Decimal(18, 2)
+  balanceAfter Decimal         @db.Decimal(18, 2)
+  gameRoundId  String?         @unique
+  gameRound    GameRound?      @relation(fields: [gameRoundId], references: [id])
+  description  String?
+  createdAt    DateTime        @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+// ---------------------------------------------------------------------------
+// Games catalog
+// ---------------------------------------------------------------------------
+
+enum GameCategory {
+  SLOTS
+  TABLE
+  INSTANT
+  CARDS
+  JACKPOT
+}
+
+model Game {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  category    GameCategory
+  subcategory String?
+  description String?
+  thumbnail   String?
+  rtp         Decimal      @db.Decimal(5, 2)
+  volatility  String       @default("medium")
+  minBet      Decimal      @default(1) @db.Decimal(18, 2)
+  maxBet      Decimal      @default(5000) @db.Decimal(18, 2)
+  isFeatured  Boolean      @default(false)
+  isNew       Boolean      @default(false)
+  isPopular   Boolean      @default(false)
+  hasJackpot  Boolean      @default(false)
+  playCount   Int          @default(0)
+  createdAt   DateTime     @default(now())
+
+  rounds      GameRound[]
+  favoritedBy FavoriteGame[]
+
+  @@index([category])
+}
+
+model GameRound {
+  id         String   @id @default(cuid())
+  userId     String
+  profile    Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId     String
+  game       Game     @relation(fields: [gameId], references: [id])
+  betAmount  Decimal  @db.Decimal(18, 2)
+  payout     Decimal  @default(0) @db.Decimal(18, 2)
+  multiplier Decimal  @default(0) @db.Decimal(12, 4)
+  result     Json?
+  isWin      Boolean  @default(false)
+  clientSeed String?
+  serverSeed String?
+  nonce      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  transaction Transaction?
+
+  @@index([userId, createdAt])
+  @@index([gameId, createdAt])
+}
+
+model FavoriteGame {
+  id        String   @id @default(cuid())
+  userId    String
+  profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, gameId])
+}
+
+// ---------------------------------------------------------------------------
+// Progression: achievements, missions, rewards
+// ---------------------------------------------------------------------------
+
+enum AchievementType {
+  ACHIEVEMENT
+  BADGE
+}
+
+model Achievement {
+  id          String          @id @default(cuid())
+  key         String          @unique
+  type        AchievementType @default(ACHIEVEMENT)
+  name        String
+  description String
+  icon        String
+  tier        String          @default("bronze")
+  xpReward    Int             @default(0)
+  coinReward  Decimal         @default(0) @db.Decimal(18, 2)
+  goal        Int             @default(1)
+
+  unlockedBy UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  profile       Profile     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  progress      Int         @default(0)
+  unlockedAt    DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+enum MissionPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model Mission {
+  id          String        @id @default(cuid())
+  key         String        @unique
+  period      MissionPeriod
+  title       String
+  description String
+  icon        String
+  goal        Int
+  xpReward    Int           @default(0)
+  coinReward  Decimal       @default(0) @db.Decimal(18, 2)
+  active      Boolean       @default(true)
+
+  progressFor UserMission[]
+}
+
+model UserMission {
+  id        String    @id @default(cuid())
+  userId    String
+  profile   Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionId String
+  mission   Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  periodKey String
+  progress  Int       @default(0)
+  completed Boolean   @default(false)
+  claimedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, missionId, periodKey])
+}
+
+enum RewardPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model RewardClaim {
+  id        String       @id @default(cuid())
+  userId    String
+  profile   Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period    RewardPeriod
+  streak    Int          @default(1)
+  amount    Decimal      @db.Decimal(18, 2)
+  periodKey String
+  claimedAt DateTime     @default(now())
+
+  @@unique([userId, period, periodKey])
+}
+
+// ---------------------------------------------------------------------------
+// Stats & leaderboard
+// ---------------------------------------------------------------------------
+
+model UserStatistics {
+  userId            String   @id
+  profile           Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalWagered      Decimal  @default(0) @db.Decimal(18, 2)
+  totalPayout       Decimal  @default(0) @db.Decimal(18, 2)
+  gamesPlayed       Int      @default(0)
+  gamesWon          Int      @default(0)
+  biggestWin        Decimal  @default(0) @db.Decimal(18, 2)
+  biggestMultiplier Decimal  @default(0) @db.Decimal(12, 4)
+  currentWinStreak  Int      @default(0)
+  bestWinStreak     Int      @default(0)
+  updatedAt         DateTime @updatedAt
+}
+
+enum LeaderboardPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ALL_TIME
+}
+
+model LeaderboardEntry {
+  id        String            @id @default(cuid())
+  userId    String
+  profile   Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period    LeaderboardPeriod
+  periodKey String
+  wagered   Decimal           @default(0) @db.Decimal(18, 2)
+  netProfit Decimal           @default(0) @db.Decimal(18, 2)
+  rank      Int?
+  updatedAt DateTime          @updatedAt
+
+  @@unique([userId, period, periodKey])
+  @@index([period, periodKey, wagered])
+}
+
+// ---------------------------------------------------------------------------
+// Promo codes & referrals (demo only — no real value)
+// ---------------------------------------------------------------------------
+
+model PromoCode {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  coinReward     Decimal   @db.Decimal(18, 2)
+  maxRedemptions Int       @default(1000)
+  redeemedCount  Int       @default(0)
+  active         Boolean   @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  redemptions PromoRedemption[]
+}
+
+model PromoRedemption {
+  id          String    @id @default(cuid())
+  userId      String
+  profile     Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  redeemedAt  DateTime  @default(now())
+
+  @@unique([userId, promoCodeId])
+}
+
+model ReferralBonus {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   Profile  @relation("ReferrerBonus", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId String
+  amount     Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([referrerId])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications, announcements, admin
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  SYSTEM
+  REWARD
+  ACHIEVEMENT
+  MISSION
+  PROMO
+  BIG_WIN
+  ADMIN
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  profile   Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  active    Boolean  @default(true)
+  createdBy String
+  author    Profile  @relation(fields: [createdBy], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     Profile  @relation(fields: [adminId], references: [id])
+  action    String
+  target    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
