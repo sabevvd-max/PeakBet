@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 
 const STARTING_BALANCE = Number(process.env.STARTING_DEMO_BALANCE ?? 10000);
+const REFERRAL_BONUS = 500;
 
 function usernameFromUser(user: User): string {
   const metaUsername = (user.user_metadata?.username as string | undefined)?.trim();
@@ -32,6 +33,9 @@ export async function getOrCreateProfile(user: User) {
     username = `${usernameFromUser(user)}${attempt}`;
   }
 
+  const referralCode = (user.user_metadata?.referralCode as string | undefined)?.trim();
+  const referrer = referralCode ? await prisma.profile.findUnique({ where: { referralCode } }) : null;
+
   const profile = await prisma.$transaction(async (tx) => {
     const created = await tx.profile.create({
       data: {
@@ -40,6 +44,7 @@ export async function getOrCreateProfile(user: User) {
         email: user.email ?? `${user.id}@peakbet.demo`,
         balance: STARTING_BALANCE,
         lastLoginAt: new Date(),
+        referredById: referrer?.id,
       },
     });
 
@@ -63,6 +68,42 @@ export async function getOrCreateProfile(user: User) {
         message: `You've been credited ${STARTING_BALANCE.toLocaleString()} demo coins. Good luck at the tables!`,
       },
     });
+
+    if (referrer) {
+      await tx.profile.update({ where: { id: created.id }, data: { balance: { increment: REFERRAL_BONUS } } });
+      await tx.transaction.create({
+        data: {
+          userId: created.id,
+          type: "REFERRAL_BONUS",
+          amount: REFERRAL_BONUS,
+          balanceAfter: STARTING_BALANCE + REFERRAL_BONUS,
+          description: `Referred by ${referrer.username}`,
+        },
+      });
+
+      const updatedReferrer = await tx.profile.update({
+        where: { id: referrer.id },
+        data: { balance: { increment: REFERRAL_BONUS } },
+      });
+      await tx.transaction.create({
+        data: {
+          userId: referrer.id,
+          type: "REFERRAL_BONUS",
+          amount: REFERRAL_BONUS,
+          balanceAfter: updatedReferrer.balance,
+          description: `Referral bonus — ${username} joined using your code`,
+        },
+      });
+      await tx.referralBonus.create({ data: { referrerId: referrer.id, referredId: created.id, amount: REFERRAL_BONUS } });
+      await tx.notification.create({
+        data: {
+          userId: referrer.id,
+          type: "REWARD",
+          title: "Referral bonus!",
+          message: `${username} joined using your referral code — you earned ${REFERRAL_BONUS} demo coins.`,
+        },
+      });
+    }
 
     return created;
   });

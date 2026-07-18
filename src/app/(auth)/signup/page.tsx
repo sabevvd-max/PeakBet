@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Mail, Lock, User as UserIcon } from "lucide-react";
@@ -13,8 +13,10 @@ import { Button } from "@/components/ui/Button";
 import { createClient } from "@/lib/supabase/client";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get("ref") ?? undefined;
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
   const [pendingConfirmation, setPendingConfirmation] = useState(false);
@@ -30,7 +32,7 @@ export default function SignupPage() {
       email: values.email,
       password: values.password,
       options: {
-        data: { username: values.username },
+        data: { username: values.username, referralCode },
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       },
     });
@@ -117,5 +119,13 @@ export default function SignupPage() {
         </Button>
       </form>
     </AuthCard>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
   );
 }

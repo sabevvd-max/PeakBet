@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { FavoriteButton } from "@/components/games/FavoriteButton";
 import { GameMeta } from "@/lib/games/types";
 
 export function GameShell({ game, children }: { game: GameMeta; children: React.ReactNode }) {
@@ -17,11 +18,12 @@ export function GameShell({ game, children }: { game: GameMeta; children: React.
           <h1 className="font-display text-2xl font-bold text-white">{game.name}</h1>
           <p className="text-sm text-peak-gray">{game.description}</p>
         </div>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <Badge variant="gold">RTP {game.rtp}%</Badge>
           <Badge variant="gray" className="capitalize">
             {game.volatility} volatility
           </Badge>
+          <FavoriteButton slug={game.slug} />
         </div>
       </div>
 
