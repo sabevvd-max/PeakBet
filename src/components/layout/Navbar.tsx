@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Menu, Volume2, VolumeX, Bell, LogOut, User, Settings, ShieldCheck, Search as SearchIcon } from "lucide-react";
+import { Menu, Volume2, VolumeX, LogOut, User, Settings, ShieldCheck, Search as SearchIcon } from "lucide-react";
 import { useUIStore } from "@/store/uiStore";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoinBalance } from "@/components/ui/CoinBalance";
 import { SearchBar } from "./SearchBar";
+import { NotificationBell } from "./NotificationBell";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -70,11 +71,7 @@ export function Navbar() {
             {soundEnabled ? <Volume2 className="h-4.5 w-4.5" /> : <VolumeX className="h-4.5 w-4.5" />}
           </button>
 
-          {user && (
-            <button className="relative rounded-lg p-2 text-peak-gray hover:bg-white/5 hover:text-white cursor-pointer" aria-label="Notifications">
-              <Bell className="h-4.5 w-4.5" />
-            </button>
-          )}
+          {user && <NotificationBell />}
         </div>
 
         {!isLoading && user && profile ? (

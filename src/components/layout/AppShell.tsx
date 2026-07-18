@@ -4,6 +4,7 @@ import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { Footer } from "./Footer";
 import { ParticleBackground } from "./ParticleBackground";
+import { AnnouncementBanner } from "@/components/home/AnnouncementBanner";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />
+        <AnnouncementBanner />
         <main className="flex-1">{children}</main>
         <Footer />
       </div>

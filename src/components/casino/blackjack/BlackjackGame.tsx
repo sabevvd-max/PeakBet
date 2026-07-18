@@ -29,7 +29,6 @@ export function BlackjackGame({ game }: { game: GameMeta }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [player, setPlayer] = useState<string[]>([]);
   const [dealer, setDealer] = useState<string[]>([]);
-  const [dealerUpCard, setDealerUpCard] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
   const [outcome, setOutcome] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,7 +66,6 @@ export function BlackjackGame({ game }: { game: GameMeta }) {
         play("lose");
       }
     } else {
-      setDealerUpCard(data.dealerUpCard);
       setDealer([data.dealerUpCard, "❓"]);
       setOutcome(null);
       setBalance(data.balance);

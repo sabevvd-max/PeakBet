@@ -18,8 +18,8 @@ export function Avatar({ username, avatarUrl, size = "md", className }: AvatarPr
   const initials = (username || "?").slice(0, 2).toUpperCase();
 
   if (avatarUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // eslint-disable-next-line @next/next/no-img-element -- arbitrary external avatar URLs, can't be pre-allowlisted for next/image
       <img
         src={avatarUrl}
         alt={username ?? "avatar"}

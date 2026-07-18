@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
-import { formatCoins, cn } from "@/lib/utils";
+import { formatCoins } from "@/lib/utils";
 
 interface AdminUser {
   id: string;

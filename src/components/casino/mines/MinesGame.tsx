@@ -9,7 +9,7 @@ import { useConfetti } from "@/hooks/useConfetti";
 import { BetPanel } from "@/components/games/BetPanel";
 import { Button } from "@/components/ui/Button";
 import { GameMeta } from "@/lib/games/types";
-import { GRID_SIZE, minesMultiplier } from "@/lib/games/resolvers/mines";
+import { GRID_SIZE } from "@/lib/games/resolvers/mines";
 import { cn, formatCoins, formatMultiplier } from "@/lib/utils";
 
 export function MinesGame({ game }: { game: GameMeta }) {
