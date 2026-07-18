@@ -59,6 +59,7 @@ model Profile {
   referralBonusesGiven ReferralBonus[]    @relation("ReferrerBonus")
   adminLogs            AdminLog[]
   announcements        Announcement[]
+  gameSessions         GameSession[]
 
   @@index([balance])
   @@index([xp])
@@ -173,6 +174,31 @@ model GameRound {
 
   @@index([userId, createdAt])
   @@index([gameId, createdAt])
+}
+
+enum GameSessionStatus {
+  ACTIVE
+  SETTLED
+  EXPIRED
+}
+
+/// Server-side state for multi-step games where the player can act repeatedly
+/// (hit/stand, reveal tiles, climb levels) before cashing out or busting —
+/// Mines, Dragon Tower, Blackjack. Everything else settles in one request.
+model GameSession {
+  id         String            @id @default(cuid())
+  userId     String
+  profile    Profile           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameSlug   String
+  status     GameSessionStatus @default(ACTIVE)
+  betAmount  Decimal           @db.Decimal(18, 2)
+  serverSeed String
+  clientSeed String
+  state      Json
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([userId, status])
 }
 
 model FavoriteGame {
